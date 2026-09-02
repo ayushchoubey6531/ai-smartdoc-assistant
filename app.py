@@ -51,7 +51,7 @@ with tab1:
             with st.spinner("AI is thinking..."):
                 try:
                     response = client.models.generate_content(
-                        model="gemini-2.0-flash",
+                        model="gemini-3.6-flash",
                         contents=user_query
                     )
                     st.success("✅ Done!")
@@ -85,7 +85,7 @@ with tab2:
                         try:
                             prompt = f"Summarize the following document clearly with key takeaways and bullet points:\n\n{extracted_text[:30000]}"
                             response = client.models.generate_content(
-                                model="gemini-2.0-flash",
+                                model="gemini-3.6-flash",
                                 contents=prompt
                             )
                             st.success("✅ Summary Generated!")
@@ -102,7 +102,7 @@ with tab2:
                         try:
                             prompt = f"Answer the user's question strictly based on the following document context.\n\nContext:\n{extracted_text[:30000]}\n\nQuestion: {pdf_question}"
                             response = client.models.generate_content(
-                                model="gemini-2.0-flash",
+                                model="gemini-3.6-flash",
                                 contents=prompt
                             )
                             st.write(response.text)
@@ -126,7 +126,7 @@ with tab3:
                 with st.spinner("Analyzing image..."):
                     try:
                         response = client.models.generate_content(
-                            model="gemini-2.0-flash",
+                            model="gemini-3.6-flash",
                             contents=[img, img_prompt]
                         )
                         st.success("✅ Analysis Complete!")
