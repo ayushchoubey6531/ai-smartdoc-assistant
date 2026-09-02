@@ -3,12 +3,6 @@ from google import genai
 from pypdf import PdfReader
 from PIL import Image
 
-# =========================================================
-# 🔑 YAHAN APNI GEMINI API KEY PASTE KAREIN
-# =========================================================
-API_KEY = "AQ.Ab8RN6ICpDC_05RvGayDKuYZL0gvTWDf4NtL_f_1jumvGLMVVA"
-# =========================================================
-
 # Page Configuration
 st.set_page_config(
     page_title="AI SmartDoc & Vision Assistant",
@@ -20,13 +14,16 @@ st.set_page_config(
 st.title("🤖 AI SmartDoc & Vision Assistant")
 st.caption("AI Manthan 2.0 Showcase Project — Powered by GenAI")
 
+# Retrieve Key safely from Streamlit Secrets
+api_key = st.secrets.get("GEMINI_API_KEY", "")
+
 # Sidebar
 with st.sidebar:
     st.header("⚡ System Status")
-    if API_KEY and API_KEY != "PASTE_YOUR_GEMINI_API_KEY_HERE":
+    if api_key:
         st.success("API Key Active & Ready")
     else:
-        st.error("API Key Missing in Code")
+        st.error("API Key Missing in Secrets")
     st.markdown("---")
     st.markdown("### 📌 Features:")
     st.markdown("- 💬 **Direct AI Chat**")
@@ -38,10 +35,10 @@ tab1, tab2, tab3 = st.tabs(["💬 General Chat", "📄 PDF Analyzer", "🖼️ I
 
 # Function to initialize Gemini Client
 def get_gemini_client():
-    if not API_KEY or API_KEY == "PASTE_YOUR_GEMINI_API_KEY_HERE":
-        st.error("⚠️ Please insert your Gemini API Key in the code (Line 9).")
+    if not api_key:
+        st.error("⚠️ Please configure GEMINI_API_KEY in Streamlit Secrets.")
         return None
-    return genai.Client(api_key=API_KEY)
+    return genai.Client(api_key=api_key)
 
 # ----------------- TAB 1: General Chat -----------------
 with tab1:
