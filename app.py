@@ -40,23 +40,21 @@ def get_gemini_client():
         return None
     return genai.Client(api_key=api_key)
 
-# Helper function with automatic fallback across models
+# Robust fallback generator
 def generate_ai_response(client, contents_payload):
-    models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"]
-    last_error = None
-    
-    for model_name in models:
+    target_models = ["gemini-2.5-flash", "gemini-2.5-pro"]
+    last_err = None
+    for model_name in target_models:
         try:
             response = client.models.generate_content(
                 model=model_name,
                 contents=contents_payload
             )
             return response.text
-        except Exception as e:
-            last_error = e
+        except Exception as err:
+            last_err = err
             continue
-            
-    raise last_error
+    raise last_err
 
 # ----------------- TAB 1: General Chat -----------------
 with tab1:
