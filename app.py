@@ -3,6 +3,12 @@ from google import genai
 from pypdf import PdfReader
 from PIL import Image
 
+# =========================================================
+# 🔑 YAHAN APNI GEMINI API KEY PASTE KAREIN
+# =========================================================
+API_KEY = "AQ.Ab8RN6ICpDC_05RvGayDKuYZL0gvTWDf4NtL_f_1jumvGLMVVA"
+# =========================================================
+
 # Page Configuration
 st.set_page_config(
     page_title="AI SmartDoc & Vision Assistant",
@@ -14,10 +20,13 @@ st.set_page_config(
 st.title("🤖 AI SmartDoc & Vision Assistant")
 st.caption("AI Manthan 2.0 Showcase Project — Powered by GenAI")
 
-# Sidebar for Settings & API Key
+# Sidebar
 with st.sidebar:
-    st.header("⚙️ Configuration")
-    api_key = st.text_input("Enter Gemini API Key", type="password", help="Get free key from aistudio.google.com")
+    st.header("⚡ System Status")
+    if API_KEY and API_KEY != "PASTE_YOUR_GEMINI_API_KEY_HERE":
+        st.success("API Key Active & Ready")
+    else:
+        st.error("API Key Missing in Code")
     st.markdown("---")
     st.markdown("### 📌 Features:")
     st.markdown("- 💬 **Direct AI Chat**")
@@ -28,11 +37,11 @@ with st.sidebar:
 tab1, tab2, tab3 = st.tabs(["💬 General Chat", "📄 PDF Analyzer", "🖼️ Image Reasoning"])
 
 # Function to initialize Gemini Client
-def get_gemini_client(key):
-    if not key:
-        st.warning("⚠️ Please enter your Gemini API Key in the left sidebar to proceed.")
+def get_gemini_client():
+    if not API_KEY or API_KEY == "PASTE_YOUR_GEMINI_API_KEY_HERE":
+        st.error("⚠️ Please insert your Gemini API Key in the code (Line 9).")
         return None
-    return genai.Client(api_key=key)
+    return genai.Client(api_key=API_KEY)
 
 # ----------------- TAB 1: General Chat -----------------
 with tab1:
@@ -40,7 +49,7 @@ with tab1:
     user_query = st.text_area("Enter your prompt / question:", placeholder="e.g., Explain Quantum Computing in simple terms...", key="tab1_prompt")
     
     if st.button("Generate Answer", key="tab1_btn"):
-        client = get_gemini_client(api_key)
+        client = get_gemini_client()
         if client and user_query.strip():
             with st.spinner("AI is thinking..."):
                 try:
@@ -73,7 +82,7 @@ with tab2:
         
         if pdf_task == "Generate Summary & Key Takeaways":
             if st.button("Summarize PDF", key="sum_btn"):
-                client = get_gemini_client(api_key)
+                client = get_gemini_client()
                 if client:
                     with st.spinner("Analyzing and summarizing document..."):
                         try:
@@ -90,7 +99,7 @@ with tab2:
         elif pdf_task == "Ask a Question from PDF":
             pdf_question = st.text_input("What do you want to know from this document?")
             if st.button("Get Answer", key="qa_btn"):
-                client = get_gemini_client(api_key)
+                client = get_gemini_client()
                 if client and pdf_question.strip():
                     with st.spinner("Searching document context..."):
                         try:
@@ -115,7 +124,7 @@ with tab3:
         img_prompt = st.text_input("Ask a question about this image:", value="Describe what you see in this image in detail.")
         
         if st.button("Analyze Image", key="img_btn"):
-            client = get_gemini_client(api_key)
+            client = get_gemini_client()
             if client:
                 with st.spinner("Analyzing image..."):
                     try:
