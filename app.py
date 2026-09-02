@@ -40,6 +40,24 @@ def get_gemini_client():
         return None
     return genai.Client(api_key=api_key)
 
+# Helper function with automatic fallback across models
+def generate_ai_response(client, contents_payload):
+    models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"]
+    last_error = None
+    
+    for model_name in models:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=contents_payload
+            )
+            return response.text
+        except Exception as e:
+            last_error = e
+            continue
+            
+    raise last_error
+
 # ----------------- TAB 1: General Chat -----------------
 with tab1:
     st.subheader("Ask Anything to AI")
@@ -50,13 +68,10 @@ with tab1:
         if client and user_query.strip():
             with st.spinner("AI is thinking..."):
                 try:
-                    response = client.models.generate_content(
-                        model="gemini-3.6-flash",
-                        contents=user_query
-                    )
+                    text_output = generate_ai_response(client, user_query)
                     st.success("✅ Done!")
                     st.markdown("### 📝 Response:")
-                    st.write(response.text)
+                    st.write(text_output)
                 except Exception as e:
                     st.error(f"Error: {e}")
 
@@ -84,12 +99,9 @@ with tab2:
                     with st.spinner("Analyzing and summarizing document..."):
                         try:
                             prompt = f"Summarize the following document clearly with key takeaways and bullet points:\n\n{extracted_text[:30000]}"
-                            response = client.models.generate_content(
-                                model="gemini-3.6-flash",
-                                contents=prompt
-                            )
+                            text_output = generate_ai_response(client, prompt)
                             st.success("✅ Summary Generated!")
-                            st.write(response.text)
+                            st.write(text_output)
                         except Exception as e:
                             st.error(f"Error: {e}")
                             
@@ -101,11 +113,8 @@ with tab2:
                     with st.spinner("Searching document context..."):
                         try:
                             prompt = f"Answer the user's question strictly based on the following document context.\n\nContext:\n{extracted_text[:30000]}\n\nQuestion: {pdf_question}"
-                            response = client.models.generate_content(
-                                model="gemini-3.6-flash",
-                                contents=prompt
-                            )
-                            st.write(response.text)
+                            text_output = generate_ai_response(client, prompt)
+                            st.write(text_output)
                         except Exception as e:
                             st.error(f"Error: {e}")
 
@@ -125,12 +134,9 @@ with tab3:
             if client:
                 with st.spinner("Analyzing image..."):
                     try:
-                        response = client.models.generate_content(
-                            model="gemini-3.6-flash",
-                            contents=[img, img_prompt]
-                        )
+                        text_output = generate_ai_response(client, [img, img_prompt])
                         st.success("✅ Analysis Complete!")
                         st.markdown("### 🔍 AI Observation:")
-                        st.write(response.text)
+                        st.write(text_output)
                     except Exception as e:
                         st.error(f"Error: {e}")
