@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 from google import genai
 from pypdf import PdfReader
 from PIL import Image
@@ -40,20 +41,23 @@ def get_gemini_client():
         return None
     return genai.Client(api_key=api_key)
 
-# Robust fallback generator
+# Fallback & Retry execution across active models
 def generate_ai_response(client, contents_payload):
-    target_models = ["gemini-2.5-flash", "gemini-2.5-pro"]
+    target_models = ["gemini-3.6-flash", "gemini-3.1-pro-preview"]
     last_err = None
+
     for model_name in target_models:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=contents_payload
-            )
-            return response.text
-        except Exception as err:
-            last_err = err
-            continue
+        for attempt in range(2):  # Temporary 503 spike ke liye 1 retry
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents_payload
+                )
+                return response.text
+            except Exception as err:
+                last_err = err
+                time.sleep(1.5)
+                continue
     raise last_err
 
 # ----------------- TAB 1: General Chat -----------------
