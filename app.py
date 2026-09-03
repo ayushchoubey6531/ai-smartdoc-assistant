@@ -1,20 +1,21 @@
 import streamlit as st
+import time
 from google import genai
-from google.genai import types
 from pypdf import PdfReader
 from PIL import Image
 
 # Page Configuration
 st.set_page_config(
     page_title="AI SmartDoc & Vision Assistant",
-    page_icon="⚡",
+    page_icon="🤖",
     layout="wide"
 )
 
-st.title("⚡ AI SmartDoc & Vision Assistant")
-st.caption("AI Manthan 2.0 Showcase Project — High-Speed Turbo Edition")
+# App Title & Subtitle
+st.title("🤖 AI SmartDoc & Vision Assistant")
+st.caption("AI Manthan 2.0 Showcase Project — Powered by GenAI")
 
-# Retrieve Key safely from Secrets
+# Retrieve Key safely from Streamlit Secrets
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 # Sidebar
@@ -25,105 +26,119 @@ with st.sidebar:
     else:
         st.error("API Key Missing in Secrets")
     st.markdown("---")
-    st.markdown("### 🚀 Speed Features:")
-    st.markdown("- ⚡ **Real-time Word Streaming**")
-    st.markdown("- 🏎️ **Persistent Client Connection**")
-    st.markdown("- 📄 **Optimized Document Context**")
+    st.markdown("### 📌 Features:")
+    st.markdown("- 💬 **Direct AI Chat**")
+    st.markdown("- 📄 **PDF Document Q&A & Summary**")
+    st.markdown("- 🖼️ **Image Analysis & Reasoning**")
 
-tab1, tab2, tab3 = st.tabs(["💬 Fast Chat", "📄 PDF Turbo Analyzer", "🖼️ Fast Vision Reasoning"])
+# Mode Selection Tabs
+tab1, tab2, tab3 = st.tabs(["💬 General Chat", "📄 PDF Analyzer", "🖼️ Image Reasoning"])
 
-# Persistent Cached Client (Faster API Handshake)
-@st.cache_resource
-def get_cached_client(key):
-    if not key:
+# Function to initialize Gemini Client
+def get_gemini_client():
+    if not api_key:
+        st.error("⚠️ Please configure GEMINI_API_KEY in Streamlit Secrets.")
         return None
-    return genai.Client(api_key=key)
+    return genai.Client(api_key=api_key)
 
-client = get_cached_client(api_key)
-
-# Fast Streaming Runner with Quick Fallback
-def stream_ai_response(client_instance, contents_payload):
+# Fallback & Retry execution across active models
+def generate_ai_response(client, contents_payload):
     target_models = ["gemini-3.6-flash", "gemini-3.1-pro-preview"]
-    
-    # Disable heavy thinking traces for maximum output speed
-    speed_config = types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(thinking_budget=0)
-    )
-    
+    last_err = None
+
     for model_name in target_models:
-        try:
-            stream = client_instance.models.generate_content_stream(
-                model=model_name,
-                contents=contents_payload,
-                config=speed_config
-            )
-            for chunk in stream:
-                if chunk.text:
-                    yield chunk.text
-            return
-        except Exception:
-            continue
-    yield "⚠️ Server is under heavy traffic. Please try once again."
+        for attempt in range(2):  # Temporary 503 spike ke liye 1 retry
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents_payload
+                )
+                return response.text
+            except Exception as err:
+                last_err = err
+                time.sleep(1.5)
+                continue
+    raise last_err
 
-# ----------------- TAB 1: Fast Chat -----------------
+# ----------------- TAB 1: General Chat -----------------
 with tab1:
-    st.subheader("Instant Chat with AI")
-    user_query = st.text_area("Enter your prompt / question:", placeholder="e.g., Explain Pointer arithmetic in C...", key="tab1_prompt")
+    st.subheader("Ask Anything to AI")
+    user_query = st.text_area("Enter your prompt / question:", placeholder="e.g., Explain Quantum Computing in simple terms...", key="tab1_prompt")
     
-    if st.button("Generate Fast Answer", key="tab1_btn"):
-        if not client:
-            st.error("⚠️ API Key is missing in Secrets.")
-        elif user_query.strip():
-            st.markdown("### 📝 Response:")
-            st.write_stream(stream_ai_response(client, user_query))
+    if st.button("Generate Answer", key="tab1_btn"):
+        client = get_gemini_client()
+        if client and user_query.strip():
+            with st.spinner("AI is thinking..."):
+                try:
+                    text_output = generate_ai_response(client, user_query)
+                    st.success("✅ Done!")
+                    st.markdown("### 📝 Response:")
+                    st.write(text_output)
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
-# ----------------- TAB 2: PDF Turbo Analyzer -----------------
+# ----------------- TAB 2: PDF Analyzer -----------------
 with tab2:
-    st.subheader("Upload PDF for Fast Parsing")
+    st.subheader("Upload PDF for Q&A and Summarization")
     uploaded_pdf = st.file_uploader("Upload a PDF document", type=["pdf"])
     
     if uploaded_pdf is not None:
         pdf_reader = PdfReader(uploaded_pdf)
-        extracted_chunks = []
-        for i, page in enumerate(pdf_reader.pages[:25]):  # Process up to 25 pages rapidly
-            txt = page.extract_text()
-            if txt:
-                extracted_chunks.append(txt)
+        extracted_text = ""
+        for page in pdf_reader.pages:
+            text = page.extract_text()
+            if text:
+                extracted_text += text + "\n"
         
-        extracted_text = "\n".join(extracted_chunks)
-        st.info(f"📄 Extracted {len(extracted_chunks)} pages in memory.")
+        st.info(f"📄 Extracted {len(pdf_reader.pages)} pages successfully.")
         
-        pdf_task = st.radio("Choose Action:", ["Instant Summary & Key Takeaways", "Ask Contextual Question"], horizontal=True)
+        pdf_task = st.radio("Choose Action:", ["Generate Summary & Key Takeaways", "Ask a Question from PDF"], horizontal=True)
         
-        if pdf_task == "Instant Summary & Key Takeaways":
-            if st.button("Summarize Now", key="sum_btn"):
+        if pdf_task == "Generate Summary & Key Takeaways":
+            if st.button("Summarize PDF", key="sum_btn"):
+                client = get_gemini_client()
                 if client:
-                    st.markdown("### 📑 Summary:")
-                    prompt = f"Provide a rapid, bulleted executive summary of this document:\n\n{extracted_text[:18000]}"
-                    st.write_stream(stream_ai_response(client, prompt))
+                    with st.spinner("Analyzing and summarizing document..."):
+                        try:
+                            prompt = f"Summarize the following document clearly with key takeaways and bullet points:\n\n{extracted_text[:30000]}"
+                            text_output = generate_ai_response(client, prompt)
+                            st.success("✅ Summary Generated!")
+                            st.write(text_output)
+                        except Exception as e:
+                            st.error(f"Error: {e}")
                             
-        elif pdf_task == "Ask Contextual Question":
-            pdf_question = st.text_input("Enter question based on document:")
-            if st.button("Get Quick Answer", key="qa_btn"):
+        elif pdf_task == "Ask a Question from PDF":
+            pdf_question = st.text_input("What do you want to know from this document?")
+            if st.button("Get Answer", key="qa_btn"):
+                client = get_gemini_client()
                 if client and pdf_question.strip():
-                    st.markdown("### 🔍 Answer:")
-                    prompt = f"Answer strictly using this context:\n\nContext:\n{extracted_text[:18000]}\n\nQuestion: {pdf_question}"
-                    st.write_stream(stream_ai_response(client, prompt))
+                    with st.spinner("Searching document context..."):
+                        try:
+                            prompt = f"Answer the user's question strictly based on the following document context.\n\nContext:\n{extracted_text[:30000]}\n\nQuestion: {pdf_question}"
+                            text_output = generate_ai_response(client, prompt)
+                            st.write(text_output)
+                        except Exception as e:
+                            st.error(f"Error: {e}")
 
-# ----------------- TAB 3: Fast Vision Reasoning -----------------
+# ----------------- TAB 3: Image Reasoning -----------------
 with tab3:
-    st.subheader("Instant Visual Inspection")
+    st.subheader("Upload an Image for Visual AI Analysis")
     uploaded_image = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
     
     if uploaded_image is not None:
         img = Image.open(uploaded_image)
-        # Resize thumbnail internally if image is massive (reduces network upload latency)
-        img.thumbnail((1024, 1024))
-        st.image(img, caption="Uploaded Image Preview", width=320)
+        st.image(img, caption="Uploaded Image Preview", width=350)
         
-        img_prompt = st.text_input("Question about this image:", value="Quickly summarize what you see.")
+        img_prompt = st.text_input("Ask a question about this image:", value="Describe what you see in this image in detail.")
         
-        if st.button("Analyze Now", key="img_btn"):
+        if st.button("Analyze Image", key="img_btn"):
+            client = get_gemini_client()
             if client:
-                st.markdown("### 🔍 AI Observation:")
-                st.write_stream(stream_ai_response(client, [img, img_prompt]))
+                with st.spinner("Analyzing image..."):
+                    try:
+                        text_output = generate_ai_response(client, [img, img_prompt])
+                        st.success("✅ Analysis Complete!")
+                        st.markdown("### 🔍 AI Observation:")
+                        st.write(text_output)
+                    except Exception as e:
+                        st.error(f"Error: {e}")
