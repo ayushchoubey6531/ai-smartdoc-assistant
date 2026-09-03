@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 from google import genai
 from pypdf import PdfReader
 from PIL import Image
@@ -40,18 +41,30 @@ def get_cached_client(key):
 
 client = get_cached_client(api_key)
 
-# Clean Streaming Response using the official active model
+# Fail-Safe Streaming Generator with Automatic Backup Model
 def stream_ai_response(client_instance, contents_payload):
-    try:
-        response_stream = client_instance.models.generate_content_stream(
-            model="gemini-3.6-flash",
-            contents=contents_payload
-        )
-        for chunk in response_stream:
-            if chunk.text:
-                yield chunk.text
-    except Exception as e:
-        yield f"Error details: {str(e)}"
+    target_models = ["gemini-3.6-flash", "gemini-3.1-pro-preview"]
+    last_err = None
+
+    for model_name in target_models:
+        try:
+            response_stream = client_instance.models.generate_content_stream(
+                model=model_name,
+                contents=contents_payload
+            )
+            yielded_any = False
+            for chunk in response_stream:
+                if chunk.text:
+                    yield chunk.text
+                    yielded_any = True
+            if yielded_any:
+                return
+        except Exception as e:
+            last_err = e
+            time.sleep(1)
+            continue
+
+    yield f"⚠️ Temporary Google Server Busy. Please click once again. (Details: {str(last_err)})"
 
 # ----------------- TAB 1: Fast Chat -----------------
 with tab1:
