@@ -41,32 +41,30 @@ def get_cached_client(key):
 
 client = get_cached_client(api_key)
 
-# Fail-Safe Streaming Generator using High-Quota Flash Models
+# Clean Streaming with Auto-Retry on 503 Spikes (Using ONLY active model: gemini-3.6-flash)
 def stream_ai_response(client_instance, contents_payload):
-    # Pro models exceed free quota quickly; flash models offer stable high limits
-    target_models = ["gemini-3.6-flash", "gemini-2.5-flash"]
+    max_retries = 3
     last_err = None
-
-    for model_name in target_models:
-        for attempt in range(2):
-            try:
-                response_stream = client_instance.models.generate_content_stream(
-                    model=model_name,
-                    contents=contents_payload
-                )
-                yielded_any = False
-                for chunk in response_stream:
-                    if chunk.text:
-                        yield chunk.text
-                        yielded_any = True
-                if yielded_any:
-                    return
-            except Exception as e:
-                last_err = e
-                time.sleep(1.5)
-                continue
-
-    yield f"⚠️ Quota or temporary busy state. Please wait 10 seconds and retry. (Details: {str(last_err)})"
+    
+    for attempt in range(max_retries):
+        try:
+            response_stream = client_instance.models.generate_content_stream(
+                model="gemini-3.6-flash",
+                contents=contents_payload
+            )
+            yielded_any = False
+            for chunk in response_stream:
+                if chunk.text:
+                    yield chunk.text
+                    yielded_any = True
+            if yielded_any:
+                return
+        except Exception as e:
+            last_err = e
+            time.sleep(2)  # Wait for Google demand spike to clear
+            continue
+            
+    yield f"⚠️ Server busy, please click once again. (Details: {str(last_err)})"
 
 # ----------------- TAB 1: Fast Chat -----------------
 with tab1:
