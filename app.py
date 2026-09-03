@@ -40,11 +40,11 @@ def get_cached_client(key):
 
 client = get_cached_client(api_key)
 
-# Clean Streaming Response
+# Clean Streaming Response using the official active model
 def stream_ai_response(client_instance, contents_payload):
     try:
         response_stream = client_instance.models.generate_content_stream(
-            model="gemini-2.5-flash",
+            model="gemini-3.6-flash",
             contents=contents_payload
         )
         for chunk in response_stream:
