@@ -41,30 +41,32 @@ def get_cached_client(key):
 
 client = get_cached_client(api_key)
 
-# Fail-Safe Streaming Generator with Automatic Backup Model
+# Fail-Safe Streaming Generator using High-Quota Flash Models
 def stream_ai_response(client_instance, contents_payload):
-    target_models = ["gemini-3.6-flash", "gemini-3.1-pro-preview"]
+    # Pro models exceed free quota quickly; flash models offer stable high limits
+    target_models = ["gemini-3.6-flash", "gemini-2.5-flash"]
     last_err = None
 
     for model_name in target_models:
-        try:
-            response_stream = client_instance.models.generate_content_stream(
-                model=model_name,
-                contents=contents_payload
-            )
-            yielded_any = False
-            for chunk in response_stream:
-                if chunk.text:
-                    yield chunk.text
-                    yielded_any = True
-            if yielded_any:
-                return
-        except Exception as e:
-            last_err = e
-            time.sleep(1)
-            continue
+        for attempt in range(2):
+            try:
+                response_stream = client_instance.models.generate_content_stream(
+                    model=model_name,
+                    contents=contents_payload
+                )
+                yielded_any = False
+                for chunk in response_stream:
+                    if chunk.text:
+                        yield chunk.text
+                        yielded_any = True
+                if yielded_any:
+                    return
+            except Exception as e:
+                last_err = e
+                time.sleep(1.5)
+                continue
 
-    yield f"⚠️ Temporary Google Server Busy. Please click once again. (Details: {str(last_err)})"
+    yield f"⚠️ Quota or temporary busy state. Please wait 10 seconds and retry. (Details: {str(last_err)})"
 
 # ----------------- TAB 1: Fast Chat -----------------
 with tab1:
